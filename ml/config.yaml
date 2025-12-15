@@ -1,0 +1,26 @@
+model:
+  path: "ml/models/"
+  name: "model_WO_AUG"
+  prod: "ml/models/prod.model_fune_tining.keras"
+  image_size: 64
+  num_classes: 10
+  img_channel: 1
+  training:
+    batch_size: 32
+    learning_rate: 0.0001
+    epochs: 50
+    optimizer: "adam"
+  fine_tuning:
+    batch_size: 32
+    learning_rate: 0.0001
+    epochs: 10
+    optimizer: "adam"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

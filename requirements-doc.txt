@@ -1,0 +1,17 @@
+# ml
+numpy
+# opencv-python
+tensorflow
+scikit-learn
+# onnx 
+# pandas
+# matplotlib
+# tf2onnx
+pyyaml
+# web framework
+fastapi
+uvicorn
+python-multipart
+# Testing
+pytest
+flake8

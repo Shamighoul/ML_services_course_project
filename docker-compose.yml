@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+  backend:
+    build: docker/backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://user:password@db:5432/features
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: features
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # опционально: инициализация схемы
+    ports:
+      - "5432:5432"  # только для разработки! В продакшене — убрать
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d features"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    
+  monitoring:
+    image: prom/prometheus
+    
+  frontend:
+    build: docker/frontend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
