@@ -33,7 +33,7 @@ deactivate
 
 ```bash
 docker build -t ml-app .
-docker run -p 80:80 ml-app
+docker run -p 80:80 ml-app # будет дорабатываться
 ```
 
 ## Run tests for the app 
