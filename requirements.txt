@@ -7,7 +7,8 @@ onnx
 pandas
 matplotlib
 tf2onnx
-yaml
+PyYAML
+pillow
 # web framework
 fastapi
 uvicorn

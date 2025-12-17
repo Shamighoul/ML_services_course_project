@@ -35,22 +35,6 @@ def startup_event():
     model = load_model(model)
 
 
-@app.get("/predict")
-def predict_digit(image: str):
-    image = preprocess(image)
-    model_pred = model.predict(image, batch_size=32, verbose=0)
-    print(model_pred)
-    image_base64 = str(base64.b64encode(image).decode("utf-8"))
-
-    response = PredictionResponse(
-        image_base64=image_base64,
-        label=int(model_pred.argmax()),
-        score=float(model_pred.max()),
-    )
-
-    return response
-
-
 @app.post("/forward")
 async def forward(
     image: UploadFile = File(...),
