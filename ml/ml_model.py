@@ -4,6 +4,13 @@ import numpy as np
 import yaml
 from keras import models
 from PIL import Image
+import cv2
+
+from sklearn.metrics import (accuracy_score, roc_auc_score, f1_score, precision_score,
+    recall_score,
+)
+from keras.utils import to_categorical
+
 
 
 class Config:
@@ -32,19 +39,17 @@ def preprocess(image, cfg=Config()):
 
     if isinstance(image, bytes):
         image = Image.open(io.BytesIO(image))
-    if not isinstance(image, np.ndarray):
-        image = image.resize(cfg.target_size, Image.Resampling.LANCZOS)
-        if image.mode != "L":
-            image = image.convert("L")
     image = np.array(image)
-
+    if image.ndim == 3 and image.shape[2] == 3:  # Если RGB
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    image = cv2.resize(image, (64, 64))
     if image.ndim == 2:
-        image = np.expand_dims(image, axis=0)
+        image = np.expand_dims(image, axis=-1)
     image = image.astype(np.float32)
     if image.max() > 1:
         image = image / 255.0
     if image.ndim == 3:
-        image = np.expand_dims(image, axis=-1)
+        image = np.expand_dims(image, axis=0)
 
     return image
 
@@ -58,3 +63,18 @@ def load_model(prod=None):
         model_hf = models.load_model(cfg.prod_model)
 
     return model_hf
+
+def calc_metrics(y_true, y_pred):
+    """Calculate metrics."""
+    y_pred = np.array(y_pred)
+    multy_y_true = to_categorical(y_true, num_classes=cfg.num_classes)
+
+    y_true = np.array(list(map(int, y_true)))
+    only_y_pred = y_pred.argmax(axis=2)
+
+    return {
+            "accuracy": accuracy_score(y_true, only_y_pred),
+            "f1": f1_score(y_true, only_y_pred, average="macro"),
+            "roc_auc": roc_auc_score(multy_y_true, y_pred[:,:,0], average="macro"),
+        }
+
