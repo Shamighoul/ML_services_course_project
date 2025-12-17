@@ -1,11 +1,17 @@
 import base64
 from typing import Optional
 
+import zipfile
+import tempfile
+import os
+import cv2
+import json
+
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from ml.ml_model import load_model, preprocess
+from ml.ml_model import load_model, preprocess, calc_metrics
 
 model = 1
 
@@ -21,6 +27,9 @@ class PredictionResponse(BaseModel):
     label: int
     score: float
 
+class MetricsResponse(BaseModel):
+    scores: dict
+
 
 # create a route
 @app.get("/")
@@ -33,22 +42,6 @@ def index():
 def startup_event():
     global model
     model = load_model(model)
-
-
-@app.get("/predict")
-def predict_digit(image: str):
-    image = preprocess(image)
-    model_pred = model.predict(image, batch_size=32, verbose=0)
-    print(model_pred)
-    image_base64 = str(base64.b64encode(image).decode("utf-8"))
-
-    response = PredictionResponse(
-        image_base64=image_base64,
-        label=int(model_pred.argmax()),
-        score=float(model_pred.max()),
-    )
-
-    return response
 
 
 @app.post("/forward")
@@ -65,12 +58,9 @@ async def forward(
 
         # Чтение изображения
     contents = await image.read()
-
-    image = preprocess(contents)
-    print(image.shape)
-    result = model.predict(image)
-
     try:
+        image = preprocess(contents)
+        result = model.predict(image)
 
         # Конвертация в base64
         image_base64 = base64.b64encode(contents).decode("utf-8")
@@ -85,7 +75,107 @@ async def forward(
         )
 
 
-@app.get("/forward-form", response_class=HTMLResponse)
-async def forward_form():
-    with open("app/temp/forward.html", "r") as f:
-        return f.read()
+@app.post("/forward_batch")
+async def forward_batch(file: UploadFile = File(...)):
+    temp_dir = tempfile.mkdtemp()
+    
+    zip_path = os.path.join(temp_dir, "data.zip")
+    with open(zip_path, "wb") as f:
+        f.write(await file.read())
+    
+    results = []
+    
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        z.extractall(temp_dir)
+        
+        for item in z.namelist():
+            file_path = os.path.join(temp_dir, item)
+            if os.path.isfile(file_path):
+                ext = os.path.splitext(item)[1].lower()
+                
+                if ext in ['.jpg', '.jpeg', '.png', '.bmp']:
+                    image = cv2.imread(file_path)
+                    if image is not None:
+                        try:
+                            print(image)
+                            image = preprocess(image)    
+                            pred = model.predict(image)
+                            image_base64 = base64.b64encode(image).decode("utf-8")
+
+                            results.append({
+                                "filename": item,
+                                "prediction": PredictionResponse(
+                                image_base64=image_base64, label=pred.argmax(), score=pred.max()
+                                )  
+                            })
+                        except Exception:
+                            raise HTTPException(
+                                status_code=403, detail="Модель не смогла обработать данные"
+                            )
+
+    for item in os.listdir(temp_dir):
+        os.remove(os.path.join(temp_dir, item))
+    os.rmdir(temp_dir)
+
+    return results
+
+@app.post("/evaluate")
+async def evaluate(file: UploadFile = File(...)):
+    temp_dir = tempfile.mkdtemp()
+    
+    zip_path = os.path.join(temp_dir, "data.zip")
+    with open(zip_path, "wb") as f:
+        f.write(await file.read())
+    
+    results = []
+    ground_truths = []
+    y_pred = []
+    y_true = []
+    
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        z.extractall(temp_dir)
+        
+        # Ищем metadata.json
+        metadata_path = os.path.join(temp_dir, "metadata.json")
+        if os.path.exists(metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+                ground_truths = metadata.get("ground_truth", [])
+        ground_truths_copy = ground_truths.copy()
+        # Обрабатываем файлы
+        for item in z.namelist():
+            file_path = os.path.join(temp_dir, item)
+            if os.path.isfile(file_path):
+                ext = os.path.splitext(item)[1].lower()
+                
+                if ext in ['.jpg', '.jpeg', '.png', '.bmp']:
+                    image = cv2.imread(file_path)
+                    print(file_path)
+                    if image is not None:
+                        # try:
+                        image = preprocess(image)    
+                        pred = model.predict(image)
+                        y_pred.append(pred)
+                        for file in ground_truths_copy: 
+                            if file["file"] == item:
+                                y_true.append(file["label"])
+                                ground_truths_copy.remove(file)
+
+                        image_base64 = base64.b64encode(image).decode("utf-8")
+
+                        results.append({
+                            "filename": item,
+                            "prediction": PredictionResponse(
+                            image_base64=image_base64, label=pred.argmax(), score=pred.max()
+                        )
+                        })
+                        # except Exception:
+                        #     raise HTTPException(
+                        #         status_code=403, detail="Модель не смогла обработать данные"
+                        #     )
+
+    for item in os.listdir(temp_dir):
+        os.remove(os.path.join(temp_dir, item))
+    os.rmdir(temp_dir)
+
+    return MetricsResponse(scores = calc_metrics(y_true, y_pred))
