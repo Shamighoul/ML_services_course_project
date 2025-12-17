@@ -72,7 +72,7 @@ def train_model(cfg):
     model.compile(
         optimizer=keras.optimizers.RMSprop(learning_rate=1e-3),
         loss="categorical_crossentropy",
-        metrics=["accuracy"],
+        metrics=[keras.metrics.TopKCategoricalAccuracy(k=1)],
     )
 
     early_stoping = EarlyStopping(
@@ -91,10 +91,8 @@ def train_model(cfg):
 
     model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
-        # Metric to monitor (e.g., validation accuracy)
         monitor="val_accuracy",
-        save_best_only=True,  # Only save the model when it is the best so far
-        # Save the entire model (False) or just weights (True)
+        save_best_only=True, 
         save_weights_only=False,
         save_freq=10 * cfg.model_cfg["training"]["batch_size"],
         verbose=1,
@@ -115,13 +113,11 @@ def train_model(cfg):
     )
     model.save(cfg.model_path)
 
-    # Evaluvate for train generator
     loss, acc = model.evaluate(x_train, y_train, verbose=0)
 
     print("The accuracy of the model for training data is:", acc * 100)
     print("The Loss of the model for training data is:", loss)
 
-    # Evaluvate for validation generator
     loss, acc = model.evaluate(val_x, val_y, verbose=0)
 
     print("The accuracy of the model for validation data is:", acc * 100)
