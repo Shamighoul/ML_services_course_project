@@ -21,6 +21,8 @@ make pretty
 
 # Run tests for ml code
 make test_ml
+# if you have error with import code from app, you should use
+export PYTHONPATH="${PYTHONPATH}:{path_to_your_project}" 
 
 # Run app
 make run_app

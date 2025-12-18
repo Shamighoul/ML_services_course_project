@@ -4,7 +4,6 @@ import numpy as np
 import yaml
 from keras import models
 from PIL import Image
-import cv2
 
 from sklearn.metrics import (accuracy_score, roc_auc_score, f1_score, precision_score,
     recall_score,
@@ -39,10 +38,11 @@ def preprocess(image, cfg=Config()):
 
     if isinstance(image, bytes):
         image = Image.open(io.BytesIO(image))
-    image = np.array(image)
-    if image.ndim == 3 and image.shape[2] == 3:  # Если RGB
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    image = cv2.resize(image, (64, 64))
+    if image.mode == 'RGB':
+        image = image.convert('L')  
+    image = image.resize((64, 64), Image.Resampling.BILINEAR)
+    image = np.array(image, dtype=np.float32)
+
     if image.ndim == 2:
         image = np.expand_dims(image, axis=-1)
     image = image.astype(np.float32)

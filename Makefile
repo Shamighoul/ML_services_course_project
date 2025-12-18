@@ -10,4 +10,4 @@ test_app:
 	pytest tests/test_app.py
 
 run_app:
-	uvicorn app.app:app --host 0.0.0.0 --port 8080
+	uvicorn app.app:app --host 0.0.0.0 --port 8000

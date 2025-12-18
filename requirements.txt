@@ -1,6 +1,5 @@
 # ml
 numpy
-opencv-python
 tensorflow
 scikit-learn
 onnx 
