@@ -34,8 +34,7 @@ deactivate
 ## Run app in docker container
 
 ```bash
-docker build -t ml-app .
-docker run -p 80:80 ml-app
+docker-compose up -d --build
 ```
 
 ## Run tests for the app 
