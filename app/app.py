@@ -4,7 +4,7 @@ from typing import Optional
 import zipfile
 import tempfile
 import os
-import cv2
+from PIL import Image
 import json
 
 from fastapi import FastAPI, File, Header, HTTPException, UploadFile
@@ -75,6 +75,11 @@ async def forward(
         )
 
 
+@app.get("/forward-form", response_class=HTMLResponse)
+async def forward_form():
+    with open("app/temp/forward.html", "r") as f:
+        return f.read()
+
 @app.post("/forward_batch")
 async def forward_batch(file: UploadFile = File(...)):
     temp_dir = tempfile.mkdtemp()
@@ -94,7 +99,7 @@ async def forward_batch(file: UploadFile = File(...)):
                 ext = os.path.splitext(item)[1].lower()
                 
                 if ext in ['.jpg', '.jpeg', '.png', '.bmp']:
-                    image = cv2.imread(file_path)
+                    image = Image.open(file_path)
                     if image is not None:
                         try:
                             print(image)
@@ -149,30 +154,30 @@ async def evaluate(file: UploadFile = File(...)):
                 ext = os.path.splitext(item)[1].lower()
                 
                 if ext in ['.jpg', '.jpeg', '.png', '.bmp']:
-                    image = cv2.imread(file_path)
+                    image = Image.open(file_path)
                     print(file_path)
                     if image is not None:
-                        # try:
-                        image = preprocess(image)    
-                        pred = model.predict(image)
-                        y_pred.append(pred)
-                        for file in ground_truths_copy: 
-                            if file["file"] == item:
-                                y_true.append(file["label"])
-                                ground_truths_copy.remove(file)
+                        try:
+                            image = preprocess(image)    
+                            pred = model.predict(image)
+                            y_pred.append(pred)
+                            for file in ground_truths_copy: 
+                                if file["file"] == item:
+                                    y_true.append(file["label"])
+                                    ground_truths_copy.remove(file)
 
-                        image_base64 = base64.b64encode(image).decode("utf-8")
+                            image_base64 = base64.b64encode(image).decode("utf-8")
 
-                        results.append({
-                            "filename": item,
-                            "prediction": PredictionResponse(
-                            image_base64=image_base64, label=pred.argmax(), score=pred.max()
-                        )
-                        })
-                        # except Exception:
-                        #     raise HTTPException(
-                        #         status_code=403, detail="Модель не смогла обработать данные"
-                        #     )
+                            results.append({
+                                "filename": item,
+                                "prediction": PredictionResponse(
+                                image_base64=image_base64, label=pred.argmax(), score=pred.max()
+                            )
+                            })
+                        except Exception:
+                            raise HTTPException(
+                                status_code=403, detail="Модель не смогла обработать данные"
+                            )
 
     for item in os.listdir(temp_dir):
         os.remove(os.path.join(temp_dir, item))

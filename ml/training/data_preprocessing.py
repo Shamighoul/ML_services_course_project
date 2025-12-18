@@ -13,8 +13,6 @@ def load_data(cfg):
     y_labels = lookup[y_labels]
 
     x_load = x_load.astype("float32")
-    # if x_load.ndim == 3:
-    #     x_load = np.expand_dims(x_load, -1)
     if x_load.max() > 1.0:
         x_load /= 255.0
 

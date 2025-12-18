@@ -1,4 +1,5 @@
 import base64
+from PIL import Image
 
 import numpy as np
 import pytest
@@ -8,7 +9,7 @@ from ml.ml_model import load_model, preprocess
 
 
 def test_load_model():
-    model = load_model()
+    model = load_model(1)
     assert model is not None
 
 
@@ -21,13 +22,18 @@ def load_test_images():
 
 @pytest.fixture(scope="function")
 def model():
-    # Load the model once for each test function
     return load_model("test")
 
 
 @pytest.mark.parametrize("image, expected_label", load_test_images())
 def test_digit(model, image, expected_label: int):
+    print(image)
+    image = Image.fromarray(image.astype(np.float32))
+    print(image)
+
     image = preprocess(image)
+    print(image)
+
     model_pred = model.predict(image)
     print(model_pred)
 
